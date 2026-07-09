@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from .geometry import PointSet
 from .svg import save_points
+from scipy.spatial import Voronoi
+from .voronoi import finite_polygons
 
 
 class PebbleGenerator:
@@ -53,3 +55,15 @@ class PebbleGenerator:
             self.height,
             self.points.points,
         )
+    def voronoi(self):
+
+        if self.points is None:
+            raise RuntimeError(
+                "generate() first"
+            )
+
+        vor = Voronoi(
+            self.points.points
+        )
+
+        return finite_polygons(vor)
