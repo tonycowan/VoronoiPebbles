@@ -6,16 +6,10 @@ gen = PebbleGenerator(
     seed=42,
 )
 
-gen.generate(120)
+gen.generate(150)
 
 gen.relax(3)
 
-regions, vertices = gen.voronoi()
-
-print(
-    f"{len(regions)} regions"
-)
-
-print(
-    f"{len(vertices)} vertices"
+gen.save_voronoi_svg(
+    "voronoi.svg"
 )

@@ -4,9 +4,11 @@ Public API.
 
 from __future__ import annotations
 
-from .geometry import PointSet
-from .svg import save_points
 from scipy.spatial import Voronoi
+
+from .geometry import PointSet
+from .polygons import build_polygons, inset_polygons, round_polygons
+from .svg import save_points, save_polygons
 from .voronoi import finite_polygons
 
 
@@ -18,14 +20,16 @@ class PebbleGenerator:
         height: float,
         seed: int | None = None,
     ):
-
         self.width = width
         self.height = height
         self.seed = seed
 
         self.points = None
 
-    def generate(self, count: int = 100):
+    def generate(
+        self,
+        count: int = 100,
+    ):
 
         self.points = PointSet.random(
             self.width,
@@ -34,10 +38,15 @@ class PebbleGenerator:
             self.seed,
         )
 
-    def relax(self, iterations: int = 3):
+    def relax(
+        self,
+        iterations: int = 3,
+    ):
 
         if self.points is None:
-            raise RuntimeError("generate() first")
+            raise RuntimeError(
+                "generate() first"
+            )
 
         self.points.relax(iterations)
 
@@ -47,7 +56,9 @@ class PebbleGenerator:
     ):
 
         if self.points is None:
-            raise RuntimeError("generate() first")
+            raise RuntimeError(
+                "generate() first"
+            )
 
         save_points(
             filename,
@@ -55,7 +66,8 @@ class PebbleGenerator:
             self.height,
             self.points.points,
         )
-    def voronoi(self):
+
+    def polygons(self):
 
         if self.points is None:
             raise RuntimeError(
@@ -66,4 +78,34 @@ class PebbleGenerator:
             self.points.points
         )
 
-        return finite_polygons(vor)
+        regions, vertices = finite_polygons(
+            vor
+        )
+
+        polys = build_polygons(
+            regions,
+            vertices,
+            self.width,
+            self.height,
+        )
+
+        polys = inset_polygons(
+            polys,
+            gap=2.0,
+        )
+
+        return round_polygons(
+            polys
+        )
+
+    def save_voronoi_svg(
+        self,
+        filename: str,
+    ):
+
+        save_polygons(
+            filename,
+            self.width,
+            self.height,
+            self.polygons(),
+        )
