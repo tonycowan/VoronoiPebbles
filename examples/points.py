@@ -8,8 +8,4 @@ gen = PebbleGenerator(
 
 gen.generate(150)
 
-gen.relax(3)
-
-gen.save_points_svg(
-    "points.svg"
-)
+print(gen.point_count)
