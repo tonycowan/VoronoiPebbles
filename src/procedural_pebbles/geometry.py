@@ -1,25 +1,26 @@
 """
-Geometry primitives for Procedural Pebbles.
+geometry.py
 
-This module currently implements
+Simple point storage and generation.
 
-- deterministic random point generation
-- Lloyd relaxation
+This module intentionally contains no Voronoi or SVG code.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 import numpy as np
-from scipy.spatial import Voronoi
 
 
-@dataclass
+@dataclass(slots=True)
 class PointSet:
+    """
+    Collection of 2D points.
+    """
+
     width: float
     height: float
     points: np.ndarray
-    rng: np.random.Generator
 
     @classmethod
     def random(
@@ -29,10 +30,13 @@ class PointSet:
         count: int,
         seed: int | None = None,
     ) -> "PointSet":
+        """
+        Generate uniformly distributed random points.
+        """
 
         rng = np.random.default_rng(seed)
 
-        pts = np.empty((count, 2), dtype=float)
+        pts = np.empty((count, 2), dtype=np.float64)
 
         pts[:, 0] = rng.uniform(0.0, width, count)
         pts[:, 1] = rng.uniform(0.0, height, count)
@@ -41,51 +45,23 @@ class PointSet:
             width=width,
             height=height,
             points=pts,
-            rng=rng,
         )
 
-    def voronoi(self) -> Voronoi:
-        return Voronoi(self.points)
+    @property
+    def count(self) -> int:
+        return len(self.points)
 
-    def relax(self, iterations: int = 1) -> None:
-        """
-        Lloyd relaxation.
+    def copy(self) -> "PointSet":
+        return PointSet(
+            width=self.width,
+            height=self.height,
+            points=self.points.copy(),
+        )
 
-        Infinite regions are ignored for now.
-        """
-
-        for _ in range(iterations):
-
-            vor = Voronoi(self.points)
-
-            new_points = []
-
-            for point_index, region_index in enumerate(vor.point_region):
-
-                region = vor.regions[region_index]
-
-                if -1 in region:
-                    new_points.append(
-                        self.points[point_index]
-                    )
-                    continue
-
-                vertices = vor.vertices[region]
-
-                centroid = vertices.mean(axis=0)
-
-                centroid[0] = np.clip(
-                    centroid[0],
-                    0,
-                    self.width,
-                )
-
-                centroid[1] = np.clip(
-                    centroid[1],
-                    0,
-                    self.height,
-                )
-
-                new_points.append(centroid)
-
-            self.points = np.asarray(new_points)
+    def bounds(self):
+        return (
+            0.0,
+            0.0,
+            self.width,
+            self.height,
+        )

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "procedural-pebbles"
 version = "0.1.0"
-description = "Generate stylized Voronoi pebble mosaics as SVG."
+description = "Generate stylized surface patterns and perforation previews on 3D meshes."
 authors = [
     {name = "Tony Cowan"}
 ]
@@ -14,7 +14,10 @@ dependencies = [
     "numpy>=2.0",
     "scipy>=1.13",
     "shapely>=2.0",
-    "svgwrite>=1.4"
+    "svgwrite>=1.4",
+    "trimesh>=4.0",
+    "manifold3d>=2.0",
+    "rtree>=1.0",
 ]
 
 requires-python = ">=3.11"
