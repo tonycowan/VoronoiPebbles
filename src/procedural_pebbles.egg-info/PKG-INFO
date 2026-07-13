@@ -1,10 +1,13 @@
 Metadata-Version: 2.4
 Name: procedural-pebbles
 Version: 0.1.0
-Summary: Generate stylized Voronoi pebble mosaics as SVG.
+Summary: Generate stylized surface patterns and perforation previews on 3D meshes.
 Author: Tony Cowan
 Requires-Python: >=3.11
 Requires-Dist: numpy>=2.0
 Requires-Dist: scipy>=1.13
 Requires-Dist: shapely>=2.0
 Requires-Dist: svgwrite>=1.4
+Requires-Dist: trimesh>=4.0
+Requires-Dist: manifold3d>=2.0
+Requires-Dist: rtree>=1.0
