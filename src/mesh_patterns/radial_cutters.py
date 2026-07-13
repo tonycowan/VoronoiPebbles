@@ -13,11 +13,13 @@ from shapely.geometry import Point, Polygon
 
 from mesh_patterns.boundary_seeds import BorderSeedSet
 from mesh_patterns.local_voronoi import (
+    build_local_rounded_shrunk_boundary_loop,
     build_local_shrunk_boundary_loop,
     voronoi_partner_indices,
 )
 from mesh_patterns.pebble_shapes import (
     _tangent_basis,
+    build_local_rounded_pebble_polygon,
     build_local_shrunk_cell_polygon,
 )
 
@@ -474,6 +476,9 @@ def build_local_radial_pebble_cutters(
     outer_margin: float = 0.08,
     outer_backoff: float = 1.0,
     cut_depth_margin: float = 1.0,
+    rounding_distance: float = 0.0,
+    spline_samples: int = 8,
+    rounding_fullness: float = 1.0,
 ) -> tuple[list[trimesh.Trimesh], dict[str, int]]:
     """
     Build radial through-wall cutters for every pattern seed.
@@ -495,27 +500,56 @@ def build_local_radial_pebble_cutters(
             seed_set.all_seeds,
             search_radius=search_radius,
         )
-        cut_polygon = build_local_shrunk_cell_polygon(
-            seed_index,
-            seed_set,
-            search_radius=search_radius,
-            perpendicular_half_length=perpendicular_half_length,
-            gap=gap,
-            partner_indices=partner_indices,
+        cut_polygon = (
+            build_local_rounded_pebble_polygon(
+                seed_index,
+                seed_set,
+                search_radius=search_radius,
+                perpendicular_half_length=perpendicular_half_length,
+                gap=gap,
+                rounding_distance=rounding_distance,
+                spline_samples=spline_samples,
+                rounding_fullness=rounding_fullness,
+                partner_indices=partner_indices,
+            )
+            if rounding_distance > 0.0
+            else build_local_shrunk_cell_polygon(
+                seed_index,
+                seed_set,
+                search_radius=search_radius,
+                perpendicular_half_length=perpendicular_half_length,
+                gap=gap,
+                partner_indices=partner_indices,
+            )
         )
         if cut_polygon is None:
             failures += 1
             continue
 
-        outer_loop = build_local_shrunk_boundary_loop(
-            seed_index,
-            seed_set.all_seeds,
-            seed_set.all_normals,
-            pattern_mesh,
-            search_radius=search_radius,
-            perpendicular_half_length=perpendicular_half_length,
-            gap=gap,
-            partner_indices=partner_indices,
+        outer_loop = (
+            build_local_rounded_shrunk_boundary_loop(
+                seed_index,
+                seed_set,
+                pattern_mesh,
+                search_radius=search_radius,
+                perpendicular_half_length=perpendicular_half_length,
+                gap=gap,
+                rounding_distance=rounding_distance,
+                spline_samples=spline_samples,
+                rounding_fullness=rounding_fullness,
+                partner_indices=partner_indices,
+            )
+            if rounding_distance > 0.0
+            else build_local_shrunk_boundary_loop(
+                seed_index,
+                seed_set.all_seeds,
+                seed_set.all_normals,
+                pattern_mesh,
+                search_radius=search_radius,
+                perpendicular_half_length=perpendicular_half_length,
+                gap=gap,
+                partner_indices=partner_indices,
+            )
         )
         if outer_loop is None:
             failures += 1
@@ -551,6 +585,43 @@ def build_local_radial_pebble_cutters(
         "pattern_seeds": len(pattern_indices),
     }
     return cutters, stats
+
+
+def build_local_rounded_radial_pebble_cutters(
+    mesh: trimesh.Trimesh,
+    pattern_mesh: trimesh.Trimesh,
+    seed_set: BorderSeedSet,
+    *,
+    search_radius: float,
+    perpendicular_half_length: float,
+    gap: float,
+    rounding_distance: float,
+    axis_xy: np.ndarray | None = None,
+    outer_margin: float = 0.08,
+    outer_backoff: float = 1.0,
+    cut_depth_margin: float = 1.0,
+    spline_samples: int = 8,
+    rounding_fullness: float = 1.0,
+) -> tuple[list[trimesh.Trimesh], dict[str, int]]:
+    """
+    Build radial cutters from rounded shrunk Voronoi boundaries.
+    """
+
+    return build_local_radial_pebble_cutters(
+        mesh,
+        pattern_mesh,
+        seed_set,
+        search_radius=search_radius,
+        perpendicular_half_length=perpendicular_half_length,
+        gap=gap,
+        axis_xy=axis_xy,
+        outer_margin=outer_margin,
+        outer_backoff=outer_backoff,
+        cut_depth_margin=cut_depth_margin,
+        rounding_distance=rounding_distance,
+        spline_samples=spline_samples,
+        rounding_fullness=rounding_fullness,
+    )
 
 
 def build_local_radial_pebble_cutters_from_loops(

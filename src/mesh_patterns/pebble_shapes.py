@@ -11,6 +11,7 @@ from shapely import affinity
 from shapely.geometry import Polygon
 
 from mesh_patterns.boundary_seeds import BorderSeedSet
+from mesh_patterns.rounded_pebble import round_polygon_vertices
 from procedural_pebbles.polygons import round_polygons, shrink_voronoi_maps
 from procedural_pebbles.voronoi import finite_polygons
 
@@ -305,6 +306,41 @@ def build_local_pebble_polygon(
     return shape_pebble_polygon(
         polygon,
         round_radius=round_radius,
+    )
+
+
+def build_local_rounded_pebble_polygon(
+    seed_index: int,
+    seed_set: BorderSeedSet,
+    *,
+    search_radius: float,
+    perpendicular_half_length: float,
+    gap: float,
+    rounding_distance: float,
+    spline_samples: int = 8,
+    rounding_fullness: float = 1.0,
+    partner_indices: np.ndarray | None = None,
+) -> Polygon | None:
+    """
+    Build a rounded cutter polygon from a shrunk local Voronoi cell.
+    """
+
+    polygon = build_local_shrunk_cell_polygon(
+        seed_index,
+        seed_set,
+        search_radius=search_radius,
+        perpendicular_half_length=perpendicular_half_length,
+        gap=gap,
+        partner_indices=partner_indices,
+    )
+    if polygon is None or rounding_distance <= 0.0:
+        return polygon
+
+    return round_polygon_vertices(
+        polygon,
+        rounding_distance,
+        spline_samples=spline_samples,
+        rounding_fullness=rounding_fullness,
     )
 
 

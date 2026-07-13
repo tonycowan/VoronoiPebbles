@@ -14,7 +14,10 @@ from .borders import filter_seeds_by_borders, seed_reach_margin
 from .boundary_seeds import BorderSeedSet, build_border_seed_rings, combine_pattern_and_border_seeds
 from .gallery_paths import creation_path, ensure_gallery_dirs, next_run_number
 from .local_voronoi import characteristic_seed_spacing, partner_search_radius
-from .radial_cutters import build_local_radial_pebble_cutters
+from .radial_cutters import (
+    build_local_radial_pebble_cutters,
+    build_local_rounded_radial_pebble_cutters,
+)
 from .perforate import perforate_mesh
 from .sample import poisson_disk_on_surface
 from .selector import OuterSideSelector, SurfaceSelection
@@ -191,3 +194,46 @@ class PatternPipeline:
         )
         mesh.export(output_path)
         return output_path
+
+
+@dataclass(slots=True)
+class RoundedPebblePipeline(PatternPipeline):
+    """
+    Pebble perforations with vertex-rounded cut boundaries.
+    """
+
+    rounding_distance: float = 1.0
+    rounding_fullness: float = 1.0
+    spline_samples: int = 8
+
+    def build_perforated_mesh(self, result: PatternResult) -> trimesh.Trimesh:
+        target_mesh = result.mesh
+        for _ in range(self.mesh_subdivide):
+            target_mesh = target_mesh.subdivide()
+
+        cutters, cutter_stats = build_local_rounded_radial_pebble_cutters(
+            result.mesh,
+            result.selection.submesh,
+            result.seed_set,
+            search_radius=result.search_radius,
+            perpendicular_half_length=self.perpendicular_half_length,
+            gap=self.gap,
+            rounding_distance=self.rounding_distance,
+            outer_margin=self.outer_cut_margin,
+            outer_backoff=self.outer_boundary_backoff,
+            cut_depth_margin=self.cut_depth_margin,
+            spline_samples=self.spline_samples,
+            rounding_fullness=self.rounding_fullness,
+        )
+        if not cutters:
+            raise ValueError("No rounded pebble cutters were generated")
+
+        print(f"  rounded pebble cutters: {len(cutters):,}")
+        print(f"  cutter failures: {cutter_stats['failures']:,}")
+        print("  performing boolean subtraction (radial toward-axis)...")
+
+        return perforate_mesh(
+            target_mesh,
+            cutters,
+            batch_size=self.perforation_batch_size,
+        )

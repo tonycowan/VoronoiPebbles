@@ -389,6 +389,107 @@ def build_local_shrunk_boundary_loop(
     return _snap_to_surface(mesh, loop)
 
 
+def build_local_rounded_shrunk_boundary_loop(
+    seed_index: int,
+    seed_set: BorderSeedSet,
+    mesh: trimesh.Trimesh,
+    *,
+    search_radius: float,
+    perpendicular_half_length: float,
+    gap: float,
+    rounding_distance: float,
+    spline_samples: int = 8,
+    rounding_fullness: float = 1.0,
+    partner_indices: np.ndarray | None = None,
+) -> np.ndarray | None:
+    """
+    Round a shrunk local Voronoi boundary, then map it to the mesh surface.
+    """
+
+    from mesh_patterns.pebble_shapes import build_local_rounded_pebble_polygon
+
+    rounded_polygon = build_local_rounded_pebble_polygon(
+        seed_index,
+        seed_set,
+        search_radius=search_radius,
+        perpendicular_half_length=perpendicular_half_length,
+        gap=gap,
+        rounding_distance=rounding_distance,
+        spline_samples=spline_samples,
+        rounding_fullness=rounding_fullness,
+        partner_indices=partner_indices,
+    )
+    if rounded_polygon is None:
+        return None
+
+    origin = seed_set.all_seeds[seed_index]
+    normal = seed_set.all_normals[seed_index]
+    loop = polygon_to_surface_loop(rounded_polygon, origin, normal)
+    if loop is None:
+        return None
+
+    return _snap_to_surface(mesh, loop)
+
+
+def local_rounded_shrunk_boundary_loops_for_pattern(
+    seed_set: BorderSeedSet,
+    mesh: trimesh.Trimesh,
+    *,
+    min_spacing: float,
+    margin: float,
+    perpendicular_half_length: float,
+    gap: float,
+    rounding_distance: float,
+    spline_samples: int = 8,
+    rounding_fullness: float = 1.0,
+    search_radius: float | None = None,
+) -> tuple[list[np.ndarray], dict[str, float | int]]:
+    """
+    Build rounded inset local Voronoi boundaries for pattern seeds.
+    """
+
+    if search_radius is None:
+        search_radius = partner_search_radius(
+            seed_set.all_seeds,
+            min_spacing=min_spacing,
+            margin=margin,
+        )
+
+    loops: list[np.ndarray] = []
+    pattern_indices = np.where(seed_set.pattern_mask)[0]
+
+    for seed_index in pattern_indices:
+        partner_indices = voronoi_partner_indices(
+            int(seed_index),
+            seed_set.all_seeds,
+            search_radius=search_radius,
+        )
+        loop = build_local_rounded_shrunk_boundary_loop(
+            int(seed_index),
+            seed_set,
+            mesh,
+            search_radius=search_radius,
+            perpendicular_half_length=perpendicular_half_length,
+            gap=gap,
+            rounding_distance=rounding_distance,
+            spline_samples=spline_samples,
+            rounding_fullness=rounding_fullness,
+            partner_indices=partner_indices,
+        )
+        if loop is not None:
+            loops.append(loop)
+
+    stats: dict[str, float | int] = {
+        "search_radius": search_radius,
+        "inset_per_side": gap * 0.5,
+        "rounding_distance": rounding_distance,
+        "rounding_fullness": rounding_fullness,
+        "boundary_count": len(loops),
+        "shrink_failures": len(pattern_indices) - len(loops),
+    }
+    return loops, stats
+
+
 def local_shrunk_boundary_loops_for_pattern(
     seed_set: BorderSeedSet,
     mesh: trimesh.Trimesh,

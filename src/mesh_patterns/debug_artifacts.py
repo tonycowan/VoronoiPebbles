@@ -19,6 +19,7 @@ from mesh_patterns.export import (
 )
 from mesh_patterns.gallery_paths import CREATIONS_DIR, ensure_gallery_dirs, next_run_number
 from mesh_patterns.local_voronoi import (
+    local_rounded_shrunk_boundary_loops_for_pattern,
     local_shrunk_boundary_loops_for_pattern,
     local_voronoi_boundary_loops_for_pattern,
 )
@@ -43,6 +44,9 @@ class TessellationDebugConfig:
     outer_line_radius: float = 0.18
     shrunk_line_radius: float = 0.28
     pebble_line_radius: float = 0.32
+    rounding_distance: float = 1.0
+    rounding_fullness: float = 1.0
+    spline_samples: int = 8
     include_outer_voronoi: bool = True
 
 
@@ -344,6 +348,80 @@ def export_pebble_cutter_artifact(
     return stl_path, glb_path
 
 
+def export_rounded_pebble_preview_artifact(
+    mesh: trimesh.Trimesh,
+    shape: str,
+    tessellation: TessellationSeedSet,
+    config: TessellationDebugConfig,
+    *,
+    run_number: int | None = None,
+) -> tuple[Path, Path]:
+    """
+    Export rounded shrunk Voronoi outlines used for rounded pebble cutting.
+    """
+
+    ensure_gallery_dirs()
+    if run_number is None:
+        run_number = next_run_number(shape, "rounded_pebble_preview")
+
+    basename = f"{shape}.rounded_pebble_preview.{run_number:03d}"
+    selection = tessellation.selection
+    seed_set = tessellation.seed_set
+
+    loops, stats = local_rounded_shrunk_boundary_loops_for_pattern(
+        seed_set,
+        selection.submesh,
+        min_spacing=config.min_spacing,
+        margin=config.margin,
+        perpendicular_half_length=config.perpendicular_half_length,
+        gap=config.gap,
+        rounding_distance=config.rounding_distance,
+        spline_samples=config.spline_samples,
+        rounding_fullness=config.rounding_fullness,
+        search_radius=tessellation.search_radius,
+    )
+
+    print("\nRounded pebble cutter preview report")
+    print(f"  minimum pebble gap: {config.gap:.1f} mm")
+    print(f"  rounding distance: {config.rounding_distance:.1f} mm")
+    print(f"  rounding fullness: {config.rounding_fullness:.2f}")
+    print(f"  inset per side: {stats['inset_per_side']:.1f} mm")
+    print(f"  pattern seeds: {seed_set.pattern_count:,}")
+    print(f"  cutter outlines: {stats['boundary_count']:,}")
+    print(f"  rounding failures: {stats['shrink_failures']:,}")
+
+    markers = seed_marker_spheres(
+        seed_set.pattern_seeds,
+        seed_set.pattern_normals,
+        radius=config.marker_radius,
+    )
+    outlines = shrunk_boundary_mesh(
+        loops,
+        selection.submesh,
+        tube_radius=config.pebble_line_radius,
+        lift=0.50,
+        follow_surface=False,
+    )
+    combined = trimesh.util.concatenate([selection.submesh, markers, outlines])
+
+    stl_path = CREATIONS_DIR / f"{basename}.stl"
+    glb_path = CREATIONS_DIR / f"{basename}.glb"
+    combined.export(stl_path)
+
+    scene = seed_cloud_scene(
+        selection.submesh,
+        seed_set.pattern_seeds,
+        seed_set.pattern_normals,
+        marker_radius=config.marker_radius,
+    )
+    outlines.visual.face_colors = (90, 180, 255, 255)
+    scene.add_geometry(outlines, geom_name="rounded_pebble_cutters")
+    scene.export(glb_path)
+
+    print(f"  exported rounded pebble cutter preview: {glb_path}")
+    return stl_path, glb_path
+
+
 def export_tessellation_artifacts(
     mesh: trimesh.Trimesh,
     shape: str,
@@ -352,6 +430,7 @@ def export_tessellation_artifacts(
     voronoi: bool = True,
     shrunk: bool = True,
     pebble_preview: bool = False,
+    rounded_pebble_preview: bool = False,
     tessellation: TessellationSeedSet | None = None,
     selection: SurfaceSelection | None = None,
 ) -> dict[str, tuple[Path, Path]]:
@@ -365,6 +444,13 @@ def export_tessellation_artifacts(
         exports["shrunk"] = export_shrunk_artifact(mesh, shape, tessellation, config)
     if pebble_preview:
         exports["pebble_preview"] = export_pebble_cutter_artifact(
+            mesh,
+            shape,
+            tessellation,
+            config,
+        )
+    if rounded_pebble_preview:
+        exports["rounded_pebble_preview"] = export_rounded_pebble_preview_artifact(
             mesh,
             shape,
             tessellation,
