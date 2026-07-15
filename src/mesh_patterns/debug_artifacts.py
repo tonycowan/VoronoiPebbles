@@ -428,6 +428,58 @@ def export_rounded_pebble_preview_artifact(
     return stl_path, glb_path
 
 
+def export_light_source_debug_artifact(
+    perforated_mesh: trimesh.Trimesh,
+    light_position: np.ndarray,
+    shape: str,
+    *,
+    pattern: str = "reflector_light",
+    run_number: int | None = None,
+    light_diameter: float = 40.0,
+) -> tuple[Path, Path]:
+    """
+    Export a copy of the perforated mesh with a red sphere at the light source.
+    """
+
+    ensure_gallery_dirs()
+    if run_number is None:
+        run_number = next_run_number(shape, pattern)
+
+    basename = f"{shape}.{pattern}.{run_number:03d}"
+    light = np.asarray(light_position, dtype=np.float64)
+
+    lamp = perforated_mesh.copy()
+    if lamp.visual is None or not hasattr(lamp.visual, "face_colors"):
+        lamp.visual.face_colors = (200, 200, 200, 255)
+    else:
+        lamp.visual.face_colors = (200, 200, 200, 255)
+
+    marker = trimesh.creation.icosphere(
+        subdivisions=3,
+        radius=0.5 * light_diameter,
+    )
+    marker.apply_translation(light)
+    marker.visual.face_colors = (220, 40, 40, 255)
+
+    combined = trimesh.util.concatenate([lamp, marker])
+    stl_path = CREATIONS_DIR / f"{basename}.stl"
+    glb_path = CREATIONS_DIR / f"{basename}.glb"
+    combined.export(stl_path)
+
+    scene = trimesh.Scene()
+    scene.add_geometry(lamp, geom_name="lamp")
+    scene.add_geometry(marker, geom_name="light_source")
+    scene.export(glb_path)
+
+    print(f"  light marker diameter: {light_diameter:.1f} mm")
+    print(
+        "  light position: "
+        f"({light[0]:.1f}, {light[1]:.1f}, {light[2]:.1f})"
+    )
+    print(f"  exported light debug: {glb_path}")
+    return stl_path, glb_path
+
+
 def export_tessellation_artifacts(
     mesh: trimesh.Trimesh,
     shape: str,

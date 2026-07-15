@@ -196,3 +196,52 @@ Debug export of inset (shrunk) local Voronoi boundaries used as cut outlines.
 | `--no-outer` | off | Hide the original Voronoi tessellation outlines |
 | `--seed` | `42` | Random seed for point scattering |
 | `--show` | off | Open an interactive preview window after export |
+
+---
+
+### `gallery/patterns/twinkle.py`
+
+Tiny cylindrical bores aimed at a shared axial light source. As an observer
+moves around the shade, different holes line up with the light.
+
+```bash
+.venv/bin/python gallery/patterns/twinkle.py gallery/shapes/CurvyLamp.stl \
+  --min-spacing 6 --hole-radius 0.8 --light-source-offset 30
+```
+
+| Argument | Default | Description |
+| --- | --- | --- |
+| `mesh` | required | Target mesh STL |
+| `--min-spacing` | `6.0` | Minimum center-to-center spacing between holes (mm) |
+| `--hole-radius` | `0.8` | Radius of each cylindrical bore (mm) |
+| `--light-source-offset` | `30.0` | Distance below the top of the shade where the light sits on the central axis (mm) |
+| `--spacing-metric` | `euclidean` | `surface` or `euclidean` |
+| `--bottom-border` | `5.0` | Unpatterned margin at the base (mm) |
+| `--top-border` | `20.0` | Unpatterned margin at the top (mm) |
+| `--seed` | `42` | Random seed for point scattering |
+| `--cylinder-sections` | `16` | Number of radial segments used for each cylinder cutter |
+
+---
+
+### `gallery/patterns/reflector.py`
+
+Square through-cuts oriented so light from an axial point source reflects off
+one face of each hole and exits horizontally.
+
+```bash
+.venv/bin/python gallery/patterns/reflector.py gallery/shapes/CurvyLamp.stl \
+  --min-spacing 8 --hole-size 1.5 --light-source-offset 30 --add-light-debug
+```
+
+| Argument | Default | Description |
+| --- | --- | --- |
+| `mesh` | required | Target mesh STL |
+| `--min-spacing` | `8.0` | Minimum center-to-center spacing between holes (mm) |
+| `--hole-size` | `1.5` | Side length of each square bore (mm) |
+| `--light-source-offset` | `30.0` | Distance below the top of the shade where the light sits on the central axis (mm) |
+| `--spacing-metric` | `euclidean` | `surface` or `euclidean` |
+| `--bottom-border` | `5.0` | Unpatterned margin at the base (mm) |
+| `--top-border` | `20.0` | Unpatterned margin at the top (mm) |
+| `--seed` | `42` | Random seed for point scattering |
+| `--light-marker-diameter` | `40.0` | Diameter of the red light-source debug sphere (mm) |
+| `--add-light-debug` | off | Also export a perforated mesh copy with a red light-source sphere |

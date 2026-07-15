@@ -21,6 +21,8 @@ from .radial_cutters import (
 from .perforate import perforate_mesh
 from .sample import poisson_disk_on_surface
 from .selector import OuterSideSelector, SurfaceSelection
+from .twinkle_cutters import build_twinkle_cutters, light_source_position
+from .reflector_cutters import build_reflector_cutters
 
 
 @dataclass(slots=True)
@@ -235,6 +237,109 @@ class RoundedPebblePipeline(PatternPipeline):
         print(f"  rounded pebble cutters: {len(cutters):,}")
         print(f"  cutter failures: {cutter_stats['failures']:,}")
         print("  performing boolean subtraction (radial toward-axis)...")
+
+        return perforate_mesh(
+            target_mesh,
+            cutters,
+            batch_size=self.perforation_batch_size,
+        )
+
+
+@dataclass(slots=True)
+class TwinklePipeline(PatternPipeline):
+    """
+    Tiny cylinders aimed at a shared axial light source for a twinkling effect.
+
+    Prefer denser seeds than pebble (e.g. ``min_spacing=6``) and a slightly larger
+    outer drill margin so the aimed cylinders fully clear the shell faces.
+    """
+
+    hole_radius: float = 0.8
+    light_source_offset: float = 30.0
+    cylinder_sections: int = 16
+    exit_margin: float = 0.5
+
+    def build_perforated_mesh(self, result: PatternResult) -> trimesh.Trimesh:
+        target_mesh = result.mesh
+        for _ in range(self.mesh_subdivide):
+            target_mesh = target_mesh.subdivide()
+
+        light = light_source_position(
+            result.mesh,
+            light_source_offset=self.light_source_offset,
+        )
+        cutters, cutter_stats = build_twinkle_cutters(
+            result.mesh,
+            result.seeds,
+            normals=result.normals,
+            light=light,
+            light_source_offset=self.light_source_offset,
+            hole_radius=self.hole_radius,
+            outer_margin=self.outer_cut_margin,
+            exit_margin=self.exit_margin,
+            sections=self.cylinder_sections,
+        )
+        if not cutters:
+            raise ValueError("No twinkle cutters were generated")
+
+        print(f"  twinkle cutters: {len(cutters):,}")
+        print(f"  cutter failures: {cutter_stats['failures']:,}")
+        print(
+            "  light source: "
+            f"({cutter_stats['light_x']:.1f}, "
+            f"{cutter_stats['light_y']:.1f}, "
+            f"{cutter_stats['light_z']:.1f})"
+        )
+        print(
+            f"  mean incidence angle: {cutter_stats['mean_incidence_deg']:.1f} deg"
+        )
+        print("  performing boolean subtraction (cylinders toward light)...")
+
+        return perforate_mesh(
+            target_mesh,
+            cutters,
+            batch_size=self.perforation_batch_size,
+        )
+
+
+@dataclass(slots=True)
+class ReflectorPipeline(PatternPipeline):
+    """
+    Square holes oriented so axial point-light reflects out horizontally.
+    """
+
+    hole_size: float = 1.5
+    light_source_offset: float = 30.0
+    exit_margin: float = 0.5
+
+    def build_perforated_mesh(self, result: PatternResult) -> trimesh.Trimesh:
+        target_mesh = result.mesh
+        for _ in range(self.mesh_subdivide):
+            target_mesh = target_mesh.subdivide()
+
+        cutters, cutter_stats = build_reflector_cutters(
+            result.mesh,
+            result.seeds,
+            light_source_offset=self.light_source_offset,
+            hole_size=self.hole_size,
+            outer_margin=self.outer_cut_margin,
+            exit_margin=self.exit_margin,
+        )
+        if not cutters:
+            raise ValueError("No reflector cutters were generated")
+
+        print(f"  reflector cutters: {len(cutters):,}")
+        print(f"  cutter failures: {cutter_stats['failures']:,}")
+        print(
+            "  light source: "
+            f"({cutter_stats['light_x']:.1f}, "
+            f"{cutter_stats['light_y']:.1f}, "
+            f"{cutter_stats['light_z']:.1f})"
+        )
+        print(
+            f"  near-horizontal holes: {cutter_stats['horizontal_count']:,}"
+        )
+        print("  performing boolean subtraction (square reflectors)...")
 
         return perforate_mesh(
             target_mesh,
