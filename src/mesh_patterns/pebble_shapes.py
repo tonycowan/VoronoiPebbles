@@ -11,6 +11,7 @@ from shapely import affinity
 from shapely.geometry import Polygon
 
 from mesh_patterns.boundary_seeds import BorderSeedSet
+from mesh_patterns.printability import notch_nearly_horizontal_overhangs
 from mesh_patterns.rounded_pebble import round_polygon_vertices
 from procedural_pebbles.polygons import round_polygons, shrink_voronoi_maps
 from procedural_pebbles.voronoi import finite_polygons
@@ -319,10 +320,14 @@ def build_local_rounded_pebble_polygon(
     rounding_distance: float,
     spline_samples: int = 8,
     rounding_fullness: float = 1.0,
+    max_overhang_degrees: float = 55.0,
     partner_indices: np.ndarray | None = None,
 ) -> Polygon | None:
     """
     Build a rounded cutter polygon from a shrunk local Voronoi cell.
+
+    Nearly-horizontal upper spans are notched for support-free printing before
+    corner rounding.
     """
 
     polygon = build_local_shrunk_cell_polygon(
@@ -333,7 +338,19 @@ def build_local_rounded_pebble_polygon(
         gap=gap,
         partner_indices=partner_indices,
     )
-    if polygon is None or rounding_distance <= 0.0:
+    if polygon is None:
+        return None
+
+    normal = seed_set.all_normals[seed_index]
+    polygon = notch_nearly_horizontal_overhangs(
+        polygon,
+        normal,
+        max_overhang_degrees=max_overhang_degrees,
+    )
+    if polygon is None:
+        return None
+
+    if rounding_distance <= 0.0:
         return polygon
 
     return round_polygon_vertices(

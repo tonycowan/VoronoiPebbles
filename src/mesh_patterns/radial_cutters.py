@@ -479,6 +479,7 @@ def build_local_radial_pebble_cutters(
     rounding_distance: float = 0.0,
     spline_samples: int = 8,
     rounding_fullness: float = 1.0,
+    max_overhang_degrees: float = 55.0,
 ) -> tuple[list[trimesh.Trimesh], dict[str, int]]:
     """
     Build radial through-wall cutters for every pattern seed.
@@ -510,6 +511,7 @@ def build_local_radial_pebble_cutters(
                 rounding_distance=rounding_distance,
                 spline_samples=spline_samples,
                 rounding_fullness=rounding_fullness,
+                max_overhang_degrees=max_overhang_degrees,
                 partner_indices=partner_indices,
             )
             if rounding_distance > 0.0
@@ -537,6 +539,7 @@ def build_local_radial_pebble_cutters(
                 rounding_distance=rounding_distance,
                 spline_samples=spline_samples,
                 rounding_fullness=rounding_fullness,
+                max_overhang_degrees=max_overhang_degrees,
                 partner_indices=partner_indices,
             )
             if rounding_distance > 0.0
@@ -602,6 +605,7 @@ def build_local_rounded_radial_pebble_cutters(
     cut_depth_margin: float = 1.0,
     spline_samples: int = 8,
     rounding_fullness: float = 1.0,
+    max_overhang_degrees: float = 55.0,
 ) -> tuple[list[trimesh.Trimesh], dict[str, int]]:
     """
     Build radial cutters from rounded shrunk Voronoi boundaries.
@@ -621,6 +625,7 @@ def build_local_rounded_radial_pebble_cutters(
         rounding_distance=rounding_distance,
         spline_samples=spline_samples,
         rounding_fullness=rounding_fullness,
+        max_overhang_degrees=max_overhang_degrees,
     )
 
 

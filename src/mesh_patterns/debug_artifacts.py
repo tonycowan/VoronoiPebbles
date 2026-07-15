@@ -47,6 +47,7 @@ class TessellationDebugConfig:
     rounding_distance: float = 1.0
     rounding_fullness: float = 1.0
     spline_samples: int = 8
+    max_overhang_degrees: float = 55.0
     include_outer_voronoi: bool = True
 
 
@@ -378,6 +379,7 @@ def export_rounded_pebble_preview_artifact(
         rounding_distance=config.rounding_distance,
         spline_samples=config.spline_samples,
         rounding_fullness=config.rounding_fullness,
+        max_overhang_degrees=config.max_overhang_degrees,
         search_radius=tessellation.search_radius,
     )
 
@@ -385,6 +387,7 @@ def export_rounded_pebble_preview_artifact(
     print(f"  minimum pebble gap: {config.gap:.1f} mm")
     print(f"  rounding distance: {config.rounding_distance:.1f} mm")
     print(f"  rounding fullness: {config.rounding_fullness:.2f}")
+    print(f"  max overhang: {config.max_overhang_degrees:.1f} deg")
     print(f"  inset per side: {stats['inset_per_side']:.1f} mm")
     print(f"  pattern seeds: {seed_set.pattern_count:,}")
     print(f"  cutter outlines: {stats['boundary_count']:,}")

@@ -121,6 +121,15 @@ def parse_args() -> argparse.Namespace:
             "tighter, higher is fuller)"
         ),
     )
+    parser.add_argument(
+        "--max-overhang-degrees",
+        type=float,
+        default=55.0,
+        help=(
+            "Maximum angle from vertical allowed on upper cut boundaries before "
+            "notching for support-free printing"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -143,6 +152,7 @@ def main() -> None:
         rounding_distance=args.rounding_distance,
         rounding_fullness=args.rounding_fullness,
         spline_samples=args.spline_samples,
+        max_overhang_degrees=args.max_overhang_degrees,
     )
 
     result = pipeline.run(mesh)
@@ -159,6 +169,7 @@ def main() -> None:
             rounding_distance=args.rounding_distance,
             rounding_fullness=args.rounding_fullness,
             spline_samples=args.spline_samples,
+            max_overhang_degrees=args.max_overhang_degrees,
         )
         export_tessellation_artifacts(
             mesh,
@@ -186,6 +197,7 @@ def main() -> None:
     print(f"Seed points: {len(result.seeds):,}")
     print(f"Rounding distance: {args.rounding_distance:.1f} mm")
     print(f"Rounding fullness: {args.rounding_fullness:.2f}")
+    print(f"Max overhang: {args.max_overhang_degrees:.1f} deg")
     print(f"Outer boundary backoff: {args.outer_boundary_backoff:.1f} mm")
     print(f"Cut depth margin: {args.cut_depth_margin:.1f} mm")
     print(f"Perforated mesh faces: {len(perforated.faces):,}")
