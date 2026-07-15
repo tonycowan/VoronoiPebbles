@@ -321,13 +321,15 @@ def build_local_rounded_pebble_polygon(
     spline_samples: int = 8,
     rounding_fullness: float = 1.0,
     max_overhang_degrees: float = 55.0,
+    print_orientation: str = "upright",
     partner_indices: np.ndarray | None = None,
 ) -> Polygon | None:
     """
     Build a rounded cutter polygon from a shrunk local Voronoi cell.
 
-    Nearly-horizontal upper spans are notched for support-free printing before
-    corner rounding.
+    Nearly-horizontal overhang spans are notched for support-free printing before
+    corner rounding. ``print_orientation`` selects upright (upper half) or
+    inverted (lower half) printing.
     """
 
     polygon = build_local_shrunk_cell_polygon(
@@ -346,6 +348,7 @@ def build_local_rounded_pebble_polygon(
         polygon,
         normal,
         max_overhang_degrees=max_overhang_degrees,
+        print_orientation=print_orientation,
     )
     if polygon is None:
         return None

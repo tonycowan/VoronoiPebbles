@@ -126,8 +126,18 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=55.0,
         help=(
-            "Maximum angle from vertical allowed on upper cut boundaries before "
+            "Maximum angle from vertical allowed on overhang cut boundaries before "
             "notching for support-free printing"
+        ),
+    )
+    parser.add_argument(
+        "--print-orientation",
+        choices=("upright", "inverted"),
+        default="upright",
+        help=(
+            "Print orientation for overhang notching: upright notches the upper "
+            "half (9-12-3); inverted notches the lower half (3-6-9) for meshes "
+            "printed upside down"
         ),
     )
     return parser.parse_args()
@@ -153,6 +163,7 @@ def main() -> None:
         rounding_fullness=args.rounding_fullness,
         spline_samples=args.spline_samples,
         max_overhang_degrees=args.max_overhang_degrees,
+        print_orientation=args.print_orientation,
     )
 
     result = pipeline.run(mesh)
@@ -170,6 +181,7 @@ def main() -> None:
             rounding_fullness=args.rounding_fullness,
             spline_samples=args.spline_samples,
             max_overhang_degrees=args.max_overhang_degrees,
+            print_orientation=args.print_orientation,
         )
         export_tessellation_artifacts(
             mesh,
@@ -198,6 +210,7 @@ def main() -> None:
     print(f"Rounding distance: {args.rounding_distance:.1f} mm")
     print(f"Rounding fullness: {args.rounding_fullness:.2f}")
     print(f"Max overhang: {args.max_overhang_degrees:.1f} deg")
+    print(f"Print orientation: {args.print_orientation}")
     print(f"Outer boundary backoff: {args.outer_boundary_backoff:.1f} mm")
     print(f"Cut depth margin: {args.cut_depth_margin:.1f} mm")
     print(f"Perforated mesh faces: {len(perforated.faces):,}")

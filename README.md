@@ -47,8 +47,9 @@ Shared seeding / border options used by most scripts:
 
 ### `gallery/patterns/rounded_pebble.py`
 
-Rounded shrunk-Voronoi pebble perforations with printable overhang notching,
-then corner spline rounding. Primary production cutter.
+Rounded shrunk-Voronoi pebble perforations with printable overhang notching
+(upper or lower half depending on print orientation), then corner spline
+rounding. Primary production cutter.
 
 ```bash
 .venv/bin/python gallery/patterns/rounded_pebble.py gallery/shapes/CurvyLamp.stl \
@@ -72,7 +73,8 @@ then corner spline rounding. Primary production cutter.
 | `--rounding-distance` | `1.0` | Distance to walk along each cut edge before replacing a sharp vertex with a fillet (mm) |
 | `--arc-samples` / `--spline-samples` | `8` | Number of samples along each tangent corner spline |
 | `--rounding-fullness` | `1.0` | Corner spline curvature scale (`1.0` balanced; lower = tighter, higher = fuller) |
-| `--max-overhang-degrees` | `55.0` | Max angle from vertical on upper cut boundaries before notching for support-free printing |
+| `--max-overhang-degrees` | `55.0` | Max angle from vertical on overhang cut boundaries before notching for support-free printing |
+| `--print-orientation` | `upright` | `upright` notches the upper half (9–12–3); `inverted` notches the lower half (3–6–9) for meshes printed upside down |
 
 ---
 

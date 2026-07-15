@@ -401,6 +401,7 @@ def build_local_rounded_shrunk_boundary_loop(
     spline_samples: int = 8,
     rounding_fullness: float = 1.0,
     max_overhang_degrees: float = 55.0,
+    print_orientation: str = "upright",
     partner_indices: np.ndarray | None = None,
 ) -> np.ndarray | None:
     """
@@ -419,6 +420,7 @@ def build_local_rounded_shrunk_boundary_loop(
         spline_samples=spline_samples,
         rounding_fullness=rounding_fullness,
         max_overhang_degrees=max_overhang_degrees,
+        print_orientation=print_orientation,
         partner_indices=partner_indices,
     )
     if rounded_polygon is None:
@@ -445,8 +447,9 @@ def local_rounded_shrunk_boundary_loops_for_pattern(
     spline_samples: int = 8,
     rounding_fullness: float = 1.0,
     max_overhang_degrees: float = 55.0,
+    print_orientation: str = "upright",
     search_radius: float | None = None,
-) -> tuple[list[np.ndarray], dict[str, float | int]]:
+) -> tuple[list[np.ndarray], dict[str, float | int | str]]:
     """
     Build rounded inset local Voronoi boundaries for pattern seeds.
     """
@@ -478,17 +481,19 @@ def local_rounded_shrunk_boundary_loops_for_pattern(
             spline_samples=spline_samples,
             rounding_fullness=rounding_fullness,
             max_overhang_degrees=max_overhang_degrees,
+            print_orientation=print_orientation,
             partner_indices=partner_indices,
         )
         if loop is not None:
             loops.append(loop)
 
-    stats: dict[str, float | int] = {
+    stats: dict[str, float | int | str] = {
         "search_radius": search_radius,
         "inset_per_side": gap * 0.5,
         "rounding_distance": rounding_distance,
         "rounding_fullness": rounding_fullness,
         "max_overhang_degrees": max_overhang_degrees,
+        "print_orientation": print_orientation,
         "boundary_count": len(loops),
         "shrink_failures": len(pattern_indices) - len(loops),
     }

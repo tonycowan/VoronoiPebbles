@@ -206,6 +206,7 @@ class RoundedPebblePipeline(PatternPipeline):
     rounding_fullness: float = 1.0
     spline_samples: int = 8
     max_overhang_degrees: float = 55.0
+    print_orientation: str = "upright"
 
     def build_perforated_mesh(self, result: PatternResult) -> trimesh.Trimesh:
         target_mesh = result.mesh
@@ -226,6 +227,7 @@ class RoundedPebblePipeline(PatternPipeline):
             spline_samples=self.spline_samples,
             rounding_fullness=self.rounding_fullness,
             max_overhang_degrees=self.max_overhang_degrees,
+            print_orientation=self.print_orientation,
         )
         if not cutters:
             raise ValueError("No rounded pebble cutters were generated")

@@ -116,11 +116,30 @@ def _point_on_edge(coords: np.ndarray, edge_index: int, parameter: float) -> np.
     return start + (end - start) * parameter
 
 
+def _normalize_print_orientation(print_orientation: str) -> str:
+    orientation = print_orientation.strip().lower()
+    if orientation not in {"upright", "inverted"}:
+        raise ValueError(
+            "print_orientation must be 'upright' or 'inverted', "
+            f"got {print_orientation!r}"
+        )
+    return orientation
+
+
 def _qualifying_edges(
     coords: np.ndarray,
     up: np.ndarray,
     max_radians: float,
+    *,
+    print_orientation: str,
 ) -> list[bool]:
+    """
+    Nearly-horizontal edges in the overhang half of the clock face.
+
+    ``upright`` uses 9–12–3 (upper half); ``inverted`` uses 3–6–9 (lower half).
+    """
+
+    orientation = _normalize_print_orientation(print_orientation)
     count = len(coords)
     flags: list[bool] = []
     for index in range(count):
@@ -133,7 +152,12 @@ def _qualifying_edges(
             continue
 
         midpoint = 0.5 * (start + end)
-        if float(np.dot(midpoint, up)) <= 0.0:
+        height = float(np.dot(midpoint, up))
+        if orientation == "upright":
+            if height <= 0.0:
+                flags.append(False)
+                continue
+        elif height >= 0.0:
             flags.append(False)
             continue
 
@@ -298,21 +322,97 @@ def _first_ray_hit(
 def _overhang_ray_directions(
     up: np.ndarray,
     max_radians: float,
+    *,
+    print_orientation: str,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
-    Inward rays at ``±max_radians`` from downward vertical.
+    Inward rays at ``±max_radians`` from vertical.
 
-    ``dir_neg`` leans toward ``+side``, ``dir_pos`` toward ``-side``, matching
-    ring traversal order for the rebuilt notch.
+    ``upright`` casts toward ``-up`` (into the upper overhang ceiling);
+    ``inverted`` casts toward ``+up`` (into the lower overhang floor when the
+    mesh will be printed upside down).
     """
 
-    down = -up
+    orientation = _normalize_print_orientation(print_orientation)
+    inward = -up if orientation == "upright" else up
     side = np.array([-up[1], up[0]], dtype=np.float64)
     cosine = float(np.cos(max_radians))
     sine = float(np.sin(max_radians))
-    dir_neg = cosine * down + sine * side
-    dir_pos = cosine * down - sine * side
-    return dir_neg, dir_pos
+    dir_plus_side = cosine * inward + sine * side
+    dir_minus_side = cosine * inward - sine * side
+    return dir_plus_side, dir_minus_side
+
+
+def _plus_arc_contains_edge(
+    start_edge: int,
+    start_parameter: float,
+    end_edge: int,
+    end_parameter: float,
+    target_edge: int,
+    target_parameter: float,
+    count: int,
+) -> bool:
+    """
+    True if ``target`` lies on the +direction ring arc from start to end.
+    """
+
+    if start_edge == end_edge:
+        if end_parameter + 1e-9 >= start_parameter:
+            return (
+                target_edge == start_edge
+                and start_parameter - 1e-9 <= target_parameter <= end_parameter + 1e-9
+            )
+        # Wrap within a single-index coincidence is treated as the long way;
+        # require an explicit multi-edge walk below by using the wrap path.
+        if target_edge == start_edge and (
+            target_parameter >= start_parameter - 1e-9
+            or target_parameter <= end_parameter + 1e-9
+        ):
+            return True
+
+    if target_edge == start_edge and target_parameter >= start_parameter - 1e-9:
+        return True
+    if target_edge == end_edge and target_parameter <= end_parameter + 1e-9:
+        return True
+
+    index = (start_edge + 1) % count
+    for _ in range(count):
+        if index == end_edge:
+            return False
+        if index == target_edge:
+            return True
+        index = (index + 1) % count
+
+    return False
+
+
+def _order_stops_for_rebuild(
+    coords: np.ndarray,
+    center: np.ndarray,
+    hit_a: np.ndarray,
+    hit_b: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Order hits so +ring traversal is ``stop_neg → center → stop_pos``.
+    """
+
+    center_edge, center_parameter = _locate_point_on_ring(coords, center)
+    edge_a, param_a = _locate_point_on_ring(coords, hit_a)
+    edge_b, param_b = _locate_point_on_ring(coords, hit_b)
+    count = len(coords)
+
+    if _plus_arc_contains_edge(
+        edge_a,
+        param_a,
+        edge_b,
+        param_b,
+        center_edge,
+        center_parameter,
+        count,
+    ):
+        return hit_a, hit_b
+
+    return hit_b, hit_a
 
 
 def _locate_point_on_ring(
@@ -397,8 +497,15 @@ def _notch_once(
     coords: np.ndarray,
     up: np.ndarray,
     max_radians: float,
+    *,
+    print_orientation: str,
 ) -> np.ndarray | None:
-    flags = _qualifying_edges(coords, up, max_radians)
+    flags = _qualifying_edges(
+        coords,
+        up,
+        max_radians,
+        print_orientation=print_orientation,
+    )
     runs = _runs_from_flags(flags)
     if not runs:
         return None
@@ -411,25 +518,28 @@ def _notch_once(
     center, center_edge, _center_parameter = _run_center(coords, start, end)
     run_edges = set(_run_edge_indices(start, end, len(coords)))
 
-    dir_neg, dir_pos = _overhang_ray_directions(up, max_radians)
-    hit_neg = _first_ray_hit(coords, center, dir_neg, skip_edges=run_edges)
-    hit_pos = _first_ray_hit(coords, center, dir_pos, skip_edges=run_edges)
-    if hit_neg is None or hit_pos is None:
-        # Fall back to allowing the center edge only if a leaner skip failed.
+    dir_plus, dir_minus = _overhang_ray_directions(
+        up,
+        max_radians,
+        print_orientation=print_orientation,
+    )
+    hit_plus = _first_ray_hit(coords, center, dir_plus, skip_edges=run_edges)
+    hit_minus = _first_ray_hit(coords, center, dir_minus, skip_edges=run_edges)
+    if hit_plus is None or hit_minus is None:
         skip = {center_edge}
-        if hit_neg is None:
-            hit_neg = _first_ray_hit(coords, center, dir_neg, skip_edges=skip)
-        if hit_pos is None:
-            hit_pos = _first_ray_hit(coords, center, dir_pos, skip_edges=skip)
-    if hit_neg is None or hit_pos is None:
+        if hit_plus is None:
+            hit_plus = _first_ray_hit(coords, center, dir_plus, skip_edges=skip)
+        if hit_minus is None:
+            hit_minus = _first_ray_hit(coords, center, dir_minus, skip_edges=skip)
+    if hit_plus is None or hit_minus is None:
         return None
 
-    stop_neg, _neg_edge, _neg_s = hit_neg
-    stop_pos, _pos_edge, _pos_s = hit_pos
-
-    if float(np.linalg.norm(stop_pos - stop_neg)) < 1e-6:
+    stop_a = hit_plus[0]
+    stop_b = hit_minus[0]
+    if float(np.linalg.norm(stop_a - stop_b)) < 1e-6:
         return None
 
+    stop_neg, stop_pos = _order_stops_for_rebuild(coords, center, stop_a, stop_b)
     return _rebuild_with_notch(coords, stop_neg, center, stop_pos)
 
 
@@ -438,21 +548,28 @@ def notch_nearly_horizontal_overhangs(
     normal: np.ndarray,
     *,
     max_overhang_degrees: float = 55.0,
+    print_orientation: str = "upright",
     max_iterations: int = 32,
 ) -> Polygon | None:
     """
-    Notch nearly-horizontal upper boundary spans into printable V roofs.
+    Notch nearly-horizontal overhang spans into printable V roofs.
 
-    Operates in the seed tangent plane where the seed is at the origin. Spans
-    whose midpoint lies between 9 and 3 (upper half, via 12) and whose direction
-    exceeds ``max_overhang_degrees`` from local vertical are replaced by two
-    chords from the span center to the first inward ray hits at
-    ``±max_overhang_degrees`` from downward vertical.
+    Operates in the seed tangent plane where the seed is at the origin.
+
+    ``print_orientation='upright'`` notches the upper half (9–12–3).
+    ``print_orientation='inverted'`` notches the lower half (3–6–9) for meshes
+    that will be printed upside down.
+
+    Spans whose direction exceeds ``max_overhang_degrees`` from local vertical
+    are replaced by chords from the span center to the first inward ray hits at
+    ``±max_overhang_degrees`` from vertical.
     """
 
     original = _as_single_polygon(polygon)
     if original is None:
         return None
+
+    orientation = _normalize_print_orientation(print_orientation)
 
     up = local_up_uv(normal)
     if up is None:
@@ -468,7 +585,12 @@ def notch_nearly_horizontal_overhangs(
 
     working = coords
     for _ in range(max_iterations):
-        updated = _notch_once(working, up, max_radians)
+        updated = _notch_once(
+            working,
+            up,
+            max_radians,
+            print_orientation=orientation,
+        )
         if updated is None:
             break
         working = _clean_ring(updated)
